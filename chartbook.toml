@@ -1,0 +1,120 @@
+[config]
+type = "pipeline"
+chartbook_format_version = "0.0.2"
+
+[site]
+title = "CDS-Bond Basis"
+author = "Jeremy Bejarano"
+copyright = "2025"
+logo_path = ""
+favicon_path = ""
+
+[pipeline]
+id = "cds_bond_basis"
+pipeline_name = "CDS-Bond Basis"
+pipeline_description = "CDS-Bond basis measuring implied arbitrage returns from the CDS and corporate bond markets"
+lead_pipeline_developer = "Jeremy Bejarano"
+contributors = ["Jeremy Bejarano", "Alex Wang", "Kausthub Kesheva", "Vincent Xu"]
+runs_on = "Windows/Linux/MacOS (WRDS required)"
+git_repo_URL = "https://github.com/ftsfr/cds_bond_basis"
+README_file_path = "./README.md"
+
+[notebooks]
+
+[notebooks.summary_cds_bond_basis]
+notebook_name = "summary_cds_bond_basis"
+notebook_description = "Summary statistics and visualization of CDS-Bond basis"
+notebook_path = "_output/_notebook_build/summary_cds_bond_basis_ipynb.ipynb"
+is_publishable = true
+
+[charts]
+
+[dataframes]
+
+[dataframes.ftsfr_cds_bond_basis_aggregated]
+dataframe_name = "ftsfr_cds_bond_basis_aggregated"
+short_description_df = "Aggregated CDS-Bond basis by rating category"
+data_sources = ["WRDS Markit", "Open Source Bond Asset Pricing"]
+data_providers = ["WRDS", "openbondassetpricing.com"]
+need_to_contact_provider = ["no"]
+data_on_pre_approved_list = ["No"]
+links_to_data_providers = ["https://wrds-www.wharton.upenn.edu", "https://openbondassetpricing.com"]
+topic_tags = ["CDS", "bonds", "arbitrage", "basis", "fixed income", "credit"]
+type_of_data_access = ["WRDS", "Public"]
+data_license = "WRDS / Public"
+license_expiration_date = ""
+provider_contact_info = ""
+restriction_on_use = "No"
+how_is_pulled = "Markit CDS from WRDS, bonds from Open Source Bond Asset Pricing"
+path_to_parquet_data = "./_data/ftsfr_cds_bond_basis_aggregated.parquet"
+path_to_excel_data = ""
+date_col = "ds"
+dataframe_docs_str = """
+## CDS-Bond Basis (Aggregated)
+
+Measures the implied arbitrage return from CDS and corporate bond markets, aggregated by rating category.
+
+### Columns
+
+| Column | Description |
+|--------|-------------|
+| unique_id | Rating category (Investment Grade, High Yield) |
+| ds | Date |
+| y | Implied risk-free rate (percent) |
+
+### Methodology
+
+Based on Siriwardane, Sunderam, and Wallen's "Segmented Arbitrage":
+
+CDS Basis:
+$$
+CB_{i, t, \\tau} = CDS_{i, t, \\tau} - FR_{i, t, \\tau}
+$$
+
+Implied Risk-Free Rate:
+$$
+rfr^{CDS}_{i, t, \\tau} = y_{t, \\tau} - CB_{i, t, \\tau}
+$$
+
+### Interpretation
+
+- Negative CB: Investor could earn arbitrage profit by going long bond + buying CDS protection
+- Positive rfr indicates positive arbitrage opportunity
+"""
+
+[dataframes.ftsfr_cds_bond_basis_non_aggregated]
+dataframe_name = "ftsfr_cds_bond_basis_non_aggregated"
+short_description_df = "Bond-level CDS-Bond basis"
+data_sources = ["WRDS Markit", "Open Source Bond Asset Pricing"]
+data_providers = ["WRDS", "openbondassetpricing.com"]
+need_to_contact_provider = ["no"]
+data_on_pre_approved_list = ["No"]
+links_to_data_providers = ["https://wrds-www.wharton.upenn.edu", "https://openbondassetpricing.com"]
+topic_tags = ["CDS", "bonds", "arbitrage", "basis", "fixed income", "credit"]
+type_of_data_access = ["WRDS", "Public"]
+data_license = "WRDS / Public"
+license_expiration_date = ""
+provider_contact_info = ""
+restriction_on_use = "No"
+how_is_pulled = "Markit CDS from WRDS, bonds from Open Source Bond Asset Pricing"
+path_to_parquet_data = "./_data/ftsfr_cds_bond_basis_non_aggregated.parquet"
+path_to_excel_data = ""
+date_col = "ds"
+dataframe_docs_str = """
+## CDS-Bond Basis (Non-Aggregated)
+
+Bond-level implied arbitrage returns from CDS and corporate bond markets.
+
+### Columns
+
+| Column | Description |
+|--------|-------------|
+| unique_id | Bond CUSIP |
+| ds | Date |
+| y | Implied risk-free rate (percent) |
+
+### Data Sources
+
+- Markit CDS data from WRDS
+- Corporate bond data from Open Source Bond Asset Pricing (openbondassetpricing.com)
+"""

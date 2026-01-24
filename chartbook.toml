@@ -24,10 +24,33 @@ README_file_path = "./README.md"
 [notebooks.summary_cds_bond_basis]
 notebook_name = "summary_cds_bond_basis"
 notebook_description = "Summary statistics and visualization of CDS-Bond basis"
-notebook_path = "_output/_notebook_build/summary_cds_bond_basis_ipynb.ipynb"
+notebook_path = "_output/summary_cds_bond_basis_ipynb.ipynb"
 is_publishable = true
 
 [charts]
+
+[charts.cds_bond_basis_replication]
+chart_name = "CDS-Bond Basis Replication"
+short_description_chart = "CDS-Bond basis measuring implied arbitrage returns by rating category"
+dataframe_id = "ftsfr_cds_bond_basis_aggregated"
+path_to_html_chart = "./_output/cds_bond_basis_replication.html"
+path_to_excel_chart = ""
+topic_tags = ["CDS", "bonds", "arbitrage", "basis", "replication"]
+past_publications = ["Siriwardane, Sunderam, and Wallen - Segmented Arbitrage", "Nozawa (2017) - What Drives the Cross-Section of Credit Spreads?"]
+chart_docs_str = """
+## CDS-Bond Basis Replication
+
+This chart shows the implied risk-free rate from CDS-bond arbitrage trades, aggregated by rating category.
+
+### Methodology
+
+Based on Siriwardane, Sunderam, and Wallen's "Segmented Arbitrage" methodology.
+
+### Interpretation
+
+- Positive values indicate arbitrage opportunity
+- Investment Grade vs High Yield comparison shows relative opportunities
+"""
 
 [dataframes]
 

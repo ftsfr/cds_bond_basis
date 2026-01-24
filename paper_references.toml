@@ -1,0 +1,24 @@
+# Paper References for CDS-Bond Basis Module
+
+[Nozawa2017]
+title = "What Drives the Cross-Section of Credit Spreads?"
+authors = "Yoshio Nozawa"
+year = 2017
+description = "The paper investigates what drives the cross-section of credit spreads and CDS-bond basis."
+empirical_facts = [
+    "CDS-bond basis can exceed 200 basis points for some pairs.",
+    "The mispricing is strongly influenced by supply factors such as Treasury debt issuance.",
+]
+data_sources = ["Markit CDS data", "TRACE corporate bond data"]
+
+[Siriwardane2021]
+title = "Segmented Arbitrage"
+authors = "Emil Siriwardane, Adi Sunderam, and Jonathan Wallen"
+year = 2021
+description = "The paper identifies financial constraints that explain the persistence of arbitrage opportunities across multiple fixed-income markets."
+empirical_facts = [
+    "CIP deviations, CDS-bond basis, and other arbitrage spreads are correlated.",
+    "Balance sheet costs explain the persistence of arbitrage opportunities.",
+    "Arbitrage spreads are higher during periods of financial stress.",
+]
+data_sources = ["WRDS Markit CDS", "Open Source Bond Asset Pricing"]

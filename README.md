@@ -54,3 +54,21 @@ CDS tenors used for cubic spline interpolation:
 1. Configure WRDS credentials in `~/.pgpass`
 2. Install dependencies: `pip install -r requirements.txt`
 3. Run pipeline: `doit`
+
+## Academic References
+
+This module replicates methodology from:
+
+### Primary Papers
+
+- **Siriwardane, Sunderam, and Wallen** - "Segmented Arbitrage"
+  - Identifies financial constraints explaining persistence of arbitrage opportunities
+
+- **Nozawa (2017)** - "What Drives the Cross-Section of Credit Spreads?"
+  - Analyzes cross-sectional drivers of CDS-bond basis
+
+### Key Findings Replicated
+
+- CDS-bond basis can exceed 200 basis points during financial stress
+- Arbitrage spreads are correlated across fixed-income markets
+- Balance sheet costs explain persistence of arbitrage opportunities

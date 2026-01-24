@@ -124,14 +124,14 @@ def task_run_notebooks():
     actions = []
     for nb_py in notebooks:
         nb_name = Path(nb_py).stem
-        nb_ipynb = OUTPUT_DIR / "_notebook_build" / f"{nb_name}.ipynb"
+        nb_ipynb = OUTPUT_DIR / f"{nb_name}.ipynb"
 
         # Convert py to ipynb
         actions.append(f'ipynb-py-convert "{nb_py}" "{nb_ipynb}"')
         # Execute notebook
         actions.append(jupyter_execute_notebook(nb_ipynb))
         # Convert to HTML
-        actions.append(jupyter_to_html(nb_ipynb, OUTPUT_DIR / "_notebook_build"))
+        actions.append(jupyter_to_html(nb_ipynb, OUTPUT_DIR))
 
     return {
         "actions": actions,
@@ -143,8 +143,8 @@ def task_run_notebooks():
             BASE_DIR / "src" / "summary_cds_bond_basis_ipynb.py",
         ],
         "targets": [
-            OUTPUT_DIR / "_notebook_build" / "summary_cds_bond_basis_ipynb.ipynb",
-            OUTPUT_DIR / "_notebook_build" / "summary_cds_bond_basis_ipynb.html",
+            OUTPUT_DIR / "summary_cds_bond_basis_ipynb.ipynb",
+            OUTPUT_DIR / "summary_cds_bond_basis_ipynb.html",
         ],
     }
 
@@ -156,7 +156,7 @@ def task_generate_pipeline_site():
         "verbosity": 2,
         "task_dep": ["run_notebooks"],
         "file_dep": [
-            OUTPUT_DIR / "_notebook_build" / "summary_cds_bond_basis_ipynb.html",
+            OUTPUT_DIR / "summary_cds_bond_basis_ipynb.html",
             BASE_DIR / "chartbook.toml",
         ],
         "targets": [

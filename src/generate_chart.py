@@ -36,14 +36,7 @@ def generate_cds_bond_basis_chart():
     # Update layout
     fig.update_layout(
         template="plotly_white",
-        hovermode="x unified",
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
+        hovermode="x unified"
     )
 
     # Ensure output directory exists

@@ -149,14 +149,31 @@ def task_run_notebooks():
     }
 
 
+def task_generate_charts():
+    """Generate interactive HTML charts."""
+    return {
+        "actions": ["python src/generate_chart.py"],
+        "file_dep": [
+            "src/generate_chart.py",
+            DATA_DIR / "ftsfr_cds_bond_basis_aggregated.parquet",
+        ],
+        "targets": [
+            OUTPUT_DIR / "cds_bond_basis_replication.html",
+        ],
+        "verbosity": 2,
+        "task_dep": ["calc"],
+    }
+
+
 def task_generate_pipeline_site():
     """Generate pipeline documentation site."""
     return {
         "actions": ["chartbook build -f"],
         "verbosity": 2,
-        "task_dep": ["run_notebooks"],
+        "task_dep": ["run_notebooks", "generate_charts"],
         "file_dep": [
             OUTPUT_DIR / "summary_cds_bond_basis_ipynb.html",
+            OUTPUT_DIR / "cds_bond_basis_replication.html",
             BASE_DIR / "chartbook.toml",
         ],
         "targets": [

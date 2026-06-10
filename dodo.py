@@ -55,32 +55,17 @@ def task_config():
     }
 
 
-def task_pull_open_source_bond():
-    """Pull Open Source Bond data (public)."""
+def task_pull_wrds_bond_ret():
+    """Pull WRDS Bond Returns panel (wrdsapps_bondret.bondret)."""
     targets = [
-        DATA_DIR / "treasury_bond_returns.parquet",
-        DATA_DIR / "treasury_bond_returns_README.pdf",
-        DATA_DIR / "corporate_bond_returns.parquet",
-        DATA_DIR / "corporate_bond_returns_README.txt",
+        DATA_DIR / "wrds_bondret_filtered.parquet",
+        DATA_DIR / "wrds_bondret_project.parquet",
     ]
     return {
-        "actions": ["python src/pull_open_source_bond.py"],
+        "actions": ["python src/pull_wrds_bond_ret.py"],
         "verbosity": 2,
         "task_dep": ["config"],
-        "targets": targets,
-        "uptodate": [all(t.exists() for t in targets)],
-    }
-
-
-def task_pull_markit_mapping():
-    """Pull RED-ISIN mapping from WRDS."""
-    targets = [
-        DATA_DIR / "RED_and_ISIN_mapping.parquet",
-    ]
-    return {
-        "actions": ["python src/pull_markit_mapping.py"],
-        "verbosity": 2,
-        "task_dep": ["config"],
+        "file_dep": ["src/pull_wrds_bond_ret.py"],
         "targets": targets,
         "uptodate": [all(t.exists() for t in targets)],
     }
@@ -97,24 +82,70 @@ def task_pull_wrds_markit():
         "actions": ["python src/pull_wrds_markit.py"],
         "verbosity": 2,
         "task_dep": ["config"],
+        "file_dep": ["src/pull_wrds_markit.py"],
         "targets": targets,
         "uptodate": [all(t.exists() for t in targets)],
     }
 
 
+def task_pull_markit_mapping():
+    """Pull RED-ISIN mapping from WRDS."""
+    targets = [
+        DATA_DIR / "RED_and_ISIN_mapping.parquet",
+    ]
+    return {
+        "actions": ["python src/pull_markit_mapping.py"],
+        "verbosity": 2,
+        "task_dep": ["config"],
+        "file_dep": ["src/pull_markit_mapping.py"],
+        "targets": targets,
+        "uptodate": [all(t.exists() for t in targets)],
+    }
+
+
+def task_process_pipeline():
+    """Run the CDS-bond basis pipeline (merges + Z-spread + basis)."""
+    return {
+        "actions": ["python src/process_pipeline.py"],
+        "verbosity": 2,
+        "task_dep": [
+            "pull_wrds_bond_ret",
+            "pull_wrds_markit",
+            "pull_markit_mapping",
+        ],
+        "file_dep": [
+            "src/process_pipeline.py",
+            "src/merge_cds_bond.py",
+            "src/merge_z_spread_bond.py",
+            "src/process_z_spread.py",
+            "src/gsw2006_yield_curve.py",
+            "src/process_final_product.py",
+            DATA_DIR / "wrds_bondret_project.parquet",
+            DATA_DIR / "RED_and_ISIN_mapping.parquet",
+            DATA_DIR / "markit_cds.parquet",
+            DATA_DIR / "us_treasury_returns" / "CRSP_TFZ_with_runness.parquet",
+            DATA_DIR / "fed_yield_curve" / "fed_yield_curve_all.parquet",
+        ],
+        "targets": [
+            DATA_DIR / "Final_data.parquet",
+            DATA_DIR / "final_data_with_z_spread.parquet",
+            DATA_DIR / "cds_basis_aggregated.parquet",
+            DATA_DIR / "cds_basis_non_aggregated.parquet",
+            DATA_DIR / "cds_basis_summary_stats.csv",
+        ],
+    }
+
+
 def task_calc():
-    """Calculate CDS-bond basis and create FTSFR datasets."""
+    """Create FTSFR datasets from the CDS-bond basis outputs."""
     return {
         "actions": ["python src/create_ftsfr_datasets.py"],
         "verbosity": 2,
-        "task_dep": ["pull_open_source_bond", "pull_markit_mapping", "pull_wrds_markit"],
+        "task_dep": ["process_pipeline"],
         "file_dep": [
-            DATA_DIR / "corporate_bond_returns.parquet",
-            DATA_DIR / "RED_and_ISIN_mapping.parquet",
-            DATA_DIR / "markit_cds.parquet",
-            BASE_DIR / "src" / "create_ftsfr_datasets.py",
-            BASE_DIR / "src" / "merge_cds_bond.py",
-            BASE_DIR / "src" / "process_final_product.py",
+            "src/create_ftsfr_datasets.py",
+            DATA_DIR / "cds_basis_aggregated.parquet",
+            DATA_DIR / "cds_basis_non_aggregated.parquet",
         ],
         "targets": [
             DATA_DIR / "ftsfr_cds_bond_basis_aggregated.parquet",
@@ -127,8 +158,8 @@ notebook_tasks = {
     "summary_cds_bond_basis_ipynb": {
         "path": "./src/summary_cds_bond_basis_ipynb.py",
         "file_dep": [
-            DATA_DIR / "ftsfr_cds_bond_basis_aggregated.parquet",
-            DATA_DIR / "ftsfr_cds_bond_basis_non_aggregated.parquet",
+            DATA_DIR / "cds_basis_aggregated.parquet",
+            DATA_DIR / "cds_basis_summary_stats.csv",
         ],
         "targets": [],
     },
@@ -161,7 +192,7 @@ def task_run_notebooks():
                 *notebook_tasks[notebook]["targets"],
             ],
             "clean": True,
-            "task_dep": ["calc"],
+            "task_dep": ["process_pipeline"],
         }
 
 

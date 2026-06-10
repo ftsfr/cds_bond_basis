@@ -1,9 +1,9 @@
 """
-This module creates FTSFR-standardized datasets from CDS-bond basis data.
+Build the (unique_id, ds, y) panels consumed by the forecasting pipeline.
 
-Outputs:
-- ftsfr_cds_bond_basis_aggregated.parquet: Aggregated by rating (unique_id, ds, y)
-- ftsfr_cds_bond_basis_non_aggregated.parquet: Individual bonds (unique_id, ds, y)
+Reads cds_basis_aggregated.parquet (rating-bucket monthly mean basis) and
+cds_basis_non_aggregated.parquet (bond-level basis) and stacks them into the
+ftsfr long format expected downstream.
 """
 
 import sys
@@ -12,74 +12,74 @@ from pathlib import Path
 sys.path.insert(1, "./src/")
 
 import pandas as pd
-import merge_cds_bond
-import process_final_product
+
 import chartbook
 
 BASE_DIR = chartbook.env.get_project_root()
 DATA_DIR = BASE_DIR / "_data"
 
 
+def _stack_to_long(df: pd.DataFrame, id_col: str, value_col: str) -> pd.DataFrame:
+    """Reshape a (id, date, value) frame into the ftsfr (unique_id, ds, y) panel."""
+    out = df[[id_col, "date", value_col]].copy()
+    out = out.dropna(subset=[id_col, "date", value_col])
+    out["unique_id"] = out[id_col].astype(str)
+    out = out.rename(columns={"date": "ds", value_col: "y"})
+    out = out[["unique_id", "ds", "y"]]
+    out = out.drop_duplicates(subset=["unique_id", "ds"], keep="last")
+    return out.reset_index(drop=True)
+
+
 def main():
-    """Create FTSFR datasets from CDS-bond basis data."""
-    print("Loading data...")
-    RED_CODE_FILE_NAME = "RED_and_ISIN_mapping.parquet"
-    CORPORATES_MONTHLY_FILE_NAME = "corporate_bond_returns.parquet"
-    CDS_FILE_NAME = "markit_cds.parquet"
+    agg_path = DATA_DIR / "cds_basis_aggregated.parquet"
+    non_agg_path = DATA_DIR / "cds_basis_non_aggregated.parquet"
 
-    corp_bonds_data = pd.read_parquet(DATA_DIR / CORPORATES_MONTHLY_FILE_NAME)
-    red_data = pd.read_parquet(DATA_DIR / RED_CODE_FILE_NAME)
-    cds_data = pd.read_parquet(DATA_DIR / CDS_FILE_NAME)
+    agg_df = pd.read_parquet(agg_path)
+    non_agg_df = pd.read_parquet(non_agg_path)
 
-    print("Merging RED codes into bond data...")
-    corp_red_data = merge_cds_bond.merge_red_code_into_bond_treas(corp_bonds_data, red_data)
+    # Use only the full-sample period for the ftsfr datasets to avoid duplicate
+    # (unique_id, ds) pairs across analysis_period slices.
+    if "analysis_period" in agg_df.columns:
+        agg_df = agg_df[agg_df["analysis_period"] == "full_period"].copy()
+    if "analysis_period" in non_agg_df.columns:
+        non_agg_df = non_agg_df[
+            non_agg_df["analysis_period"] == "full_period"
+        ].copy()
 
-    print("Merging CDS data into bonds...")
-    final_data = merge_cds_bond.merge_cds_into_bonds(corp_red_data, cds_data)
-
-    print("Processing CDS-bond spread...")
-    df_all = process_final_product.process_cb_spread(final_data)
-
-    print("Creating final products...")
-    agg_df, non_agg_df = process_final_product.output_cb_final_products(df_all)
-
-    # Create aggregated FTSFR dataset
-    print("Creating aggregated FTSFR dataset...")
-    agg_df_indexed = agg_df.set_index(["c_rating", "date"])
-    df_stacked = agg_df_indexed.stack().reset_index()
-    df_stacked.columns = ["c_rating", "date", "variable", "value"]
-    df_stacked["unique_id"] = df_stacked["c_rating"].astype(str)
-    df_stacked = df_stacked[["unique_id", "date", "value"]].rename(
-        columns={"date": "ds", "value": "y"}
+    # Rating-bucket aggregate: one series per c_rating, CDS basis in bps.
+    df_agg_long = _stack_to_long(
+        agg_df.assign(unique_label=agg_df["c_rating"].astype(str)),
+        id_col="unique_label",
+        value_col="cds_basis_spread_bps",
     )
-    df_stacked.reset_index(drop=True, inplace=True)
-    df_stacked = df_stacked.dropna()
-    df_stacked.to_parquet(DATA_DIR / "ftsfr_cds_bond_basis_aggregated.parquet")
-    print(f"Aggregated dataset: {len(df_stacked)} records, {df_stacked['unique_id'].nunique()} unique IDs")
-
-    # Create non-aggregated FTSFR dataset
-    print("Creating non-aggregated FTSFR dataset...")
-    non_agg_df_indexed = non_agg_df.set_index(["cusip", "date"])
-    df_stacked2 = non_agg_df_indexed.stack().reset_index()
-    df_stacked2.columns = ["cusip", "date", "variable", "value"]
-    df_stacked2["unique_id"] = df_stacked2["cusip"]
-    df_stacked2 = df_stacked2[["unique_id", "date", "value"]].rename(
-        columns={"date": "ds", "value": "y"}
+    df_agg_long.to_parquet(DATA_DIR / "ftsfr_cds_bond_basis_aggregated.parquet")
+    print(
+        "Saved: ftsfr_cds_bond_basis_aggregated.parquet "
+        f"({len(df_agg_long)} rows, {df_agg_long['unique_id'].nunique()} series)"
     )
 
-    # Check for duplicates
-    duplicates = df_stacked2.duplicated(subset=["unique_id", "ds"])
-    num_duplicates = duplicates.sum()
-    if num_duplicates > 0:
-        print(f"Warning: Found {num_duplicates} duplicate (unique_id, ds) pairs. Removing duplicates...")
-        df_stacked2.drop_duplicates(subset=["unique_id", "ds"], inplace=True)
+    # Bond-level: one series per ISIN (preferred) or cusip, CDS basis in bps.
+    if "isin" in non_agg_df.columns:
+        id_col = "isin"
+    elif "cusip" in non_agg_df.columns:
+        id_col = "cusip"
+    else:
+        raise ValueError(
+            "non-aggregated panel must contain 'isin' or 'cusip' for unique_id."
+        )
 
-    df_stacked2.reset_index(drop=True, inplace=True)
-    df_stacked2 = df_stacked2.dropna()
-    df_stacked2.to_parquet(DATA_DIR / "ftsfr_cds_bond_basis_non_aggregated.parquet")
-    print(f"Non-aggregated dataset: {len(df_stacked2)} records, {df_stacked2['unique_id'].nunique()} unique IDs")
-
-    print("\nDone!")
+    df_nonagg_long = _stack_to_long(
+        non_agg_df,
+        id_col=id_col,
+        value_col="cds_basis_spread_bps",
+    )
+    df_nonagg_long.to_parquet(
+        DATA_DIR / "ftsfr_cds_bond_basis_non_aggregated.parquet"
+    )
+    print(
+        "Saved: ftsfr_cds_bond_basis_non_aggregated.parquet "
+        f"({len(df_nonagg_long)} rows, {df_nonagg_long['unique_id'].nunique()} series)"
+    )
 
 
 if __name__ == "__main__":

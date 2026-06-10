@@ -1,30 +1,53 @@
 # %%
 """
-# CDS-Bond Basis Summary
+# CDS-Bond Basis: Construction and Comparison to Siriwardane, Sunderam, Wallen (2021)
 
-This notebook summarizes the CDS-Bond Basis dataset, which measures the implied
-arbitrage return from the CDS and corporate bond markets as specified in
-Siriwardane, Sunderam, and Wallen's "Segmented Arbitrage" paper.
+This notebook documents the construction of the CDS-bond basis used in the
+ftsfr panel and compares the resulting time series to Figure A1g of
+Siriwardane, Sunderam, and Wallen (2021),
+[*Segmented Arbitrage*](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3960980).
 
-## Methodology
+## Definition
 
-The CDS basis (CB) is defined as:
-
-$$
-CB_{i, t, \\tau} = CDS_{i, t, \\tau} - FR_{i, t, \\tau}
-$$
-
-Where:
-- $FR_{i, t, \\tau}$ = floating rate spread implied by a corporate bond (approximated by Z-spread/credit spread)
-- $CDS_{i, t, \\tau}$ = CDS par spread (interpolated using cubic spline)
-
-The implied risk-free rate is:
+The CDS-bond basis (or arbitrage spread) for firm $i$ at date $t$ and tenor
+$\\tau$ is
 
 $$
-rfr^{CDS}_{i, t, \\tau} = y_{t, \\tau} - CB_{i , t, \\tau}
+CB_{i,t,\\tau} = CDS_{i,t,\\tau} - FR_{i,t,\\tau}
 $$
 
-Where $y_{t, \\tau}$ is the duration-matched treasury yield.
+where $CDS_{i,t,\\tau}$ is the maturity-matched par CDS spread and
+$FR_{i,t,\\tau}$ is the floating-rate spread implied by the bond, proxied by
+its Z-spread relative to the fitted Treasury NSS curve.
+
+We construct $FR_{i,t,\\tau}$ as a true Z-spread by solving the no-arbitrage
+pricing equation against the Nelson-Siegel-Svensson Treasury curve fitted on
+the CRSP daily Treasury panel
+([Gurkaynak, Sack, Wright, 2007](https://doi.org/10.1016/j.jmoneco.2007.06.029)).
+This replaces the earlier ftsfr implementation, which used a duration-matched
+credit spread as a stand-in for the Z-spread.
+
+## Sample filters (matching the paper)
+
+1. Senior unsecured USD-denominated debt with non-missing ISIN
+2. Fixed-rate bonds with maturity between 1 and 10 years
+3. Outstanding principal >= USD 100,000 (`amount_outstanding > 100` in `wrdsapps_bondret.bondret`)
+4. Excludes convertible bonds (`conv = 0`)
+5. Excludes bonds priced below 50 cents on the dollar (`price_eom >= 50`)
+6. CDS curve must have at least two tenors on the same date as the bond
+   observation (otherwise the cubic-spline interpolation is unidentified).
+
+## Data flow
+
+```
+pull_wrds_bond_ret.py    -> wrds_bondret_project.parquet
+pull_markit_mapping.py   -> RED_and_ISIN_mapping.parquet
+pull_wrds_markit.py      -> markit_cds.parquet
+                           |
+merge_cds_bond.py        -> Final_data.parquet           (bond + interpolated par CDS spread)
+merge_z_spread_bond.py   -> final_data_with_z_spread.parquet
+process_final_product.py -> cds_basis_aggregated.parquet (IG / HY monthly means in bps)
+```
 """
 
 # %%
@@ -34,8 +57,8 @@ from pathlib import Path
 sys.path.insert(1, "./src/")
 
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+from matplotlib import pyplot as plt
+
 import chartbook
 
 BASE_DIR = chartbook.env.get_project_root()
@@ -43,132 +66,69 @@ DATA_DIR = BASE_DIR / "_data"
 
 # %%
 """
-## Load Data
+## Aggregated panel: IG vs HY CDS-bond basis (bps)
+
+The aggregated parquet is one row per (c_rating, date) and analysis period.
+We focus on the full-sample series here; the paper's replication window is
+shown as a separate slice for direct comparison to Figure A1g.
 """
 
 # %%
-# Load FTSFR datasets
-agg_df = pd.read_parquet(DATA_DIR / "ftsfr_cds_bond_basis_aggregated.parquet")
-non_agg_df = pd.read_parquet(DATA_DIR / "ftsfr_cds_bond_basis_non_aggregated.parquet")
+agg_df = pd.read_parquet(DATA_DIR / "cds_basis_aggregated.parquet")
+agg_df.head()
 
-print("=== Aggregated Dataset ===")
-print(f"Shape: {agg_df.shape}")
-print(f"Date range: {agg_df['ds'].min()} to {agg_df['ds'].max()}")
-print(f"Unique IDs: {agg_df['unique_id'].unique().tolist()}")
-
-print("\n=== Non-Aggregated Dataset ===")
-print(f"Shape: {non_agg_df.shape}")
-print(f"Date range: {non_agg_df['ds'].min()} to {non_agg_df['ds'].max()}")
-print(f"Unique CUSIPs: {non_agg_df['unique_id'].nunique()}")
+# %%
+stats_df = pd.read_csv(DATA_DIR / "cds_basis_summary_stats.csv")
+stats_df
 
 # %%
 """
-## Summary Statistics - Aggregated Data
+## Full-sample plot
 """
 
 # %%
-# Pivot to wide format for statistics
-agg_wide = agg_df.pivot(index="ds", columns="unique_id", values="y")
-print("Aggregated CDS-Bond Basis (Implied Risk-Free Rate, percent)")
-print(agg_wide.describe().T)
+full = agg_df[agg_df["analysis_period"] == "full_period"].copy()
+full["date"] = pd.to_datetime(full["date"])
 
-# %%
-"""
-## Summary Statistics - Non-Aggregated Data (Bond-Level)
-"""
-
-# %%
-print("Non-Aggregated CDS-Bond Basis Statistics")
-print(non_agg_df["y"].describe())
-
-# %%
-"""
-## Time Series Plot - Aggregated by Rating
-"""
-
-# %%
 fig, ax = plt.subplots(figsize=(12, 6))
-
-for uid in agg_df["unique_id"].unique():
-    subset = agg_df[agg_df["unique_id"] == uid].sort_values("ds")
-    ax.plot(subset["ds"], subset["y"], label=uid, linewidth=0.8)
-
+for rating in ["Investment Grade", "High Yield"]:
+    s = (
+        full[full["c_rating"] == rating]
+        .groupby(pd.Grouper(key="date", freq="ME"))["cds_basis_spread_bps"]
+        .mean()
+    )
+    ax.plot(s.index, s.values, label=rating, linewidth=1.2)
 ax.axhline(0, color="black", linewidth=0.8, linestyle="--")
+ax.set_title("CDS-Bond Basis (full sample)")
 ax.set_xlabel("Date")
-ax.set_ylabel("Implied Risk-Free Rate (percent)")
-ax.set_title("CDS-Bond Basis by Rating Category")
-ax.legend(loc="best")
-ax.grid(True, alpha=0.3)
+ax.set_ylabel("Basis (bps)")
+ax.grid(True, linewidth=0.3, alpha=0.7)
+ax.legend()
 plt.tight_layout()
 plt.show()
 
 # %%
 """
-## Distribution of Implied Risk-Free Rates
+## Paper replication window (2010-01 to 2020-02) — Figure A1g comparison
 """
 
 # %%
-fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+rep = agg_df[agg_df["analysis_period"] == "replication_2010_2020"].copy()
+rep["date"] = pd.to_datetime(rep["date"])
 
-# Aggregated data
-for uid in agg_df["unique_id"].unique():
-    subset = agg_df[agg_df["unique_id"] == uid]
-    axes[0].hist(subset["y"], bins=50, alpha=0.5, label=uid)
-axes[0].set_xlabel("Implied Risk-Free Rate (percent)")
-axes[0].set_ylabel("Frequency")
-axes[0].set_title("Aggregated by Rating")
-axes[0].legend()
-
-# Non-aggregated data
-axes[1].hist(non_agg_df["y"], bins=100, alpha=0.7, color="steelblue")
-axes[1].set_xlabel("Implied Risk-Free Rate (percent)")
-axes[1].set_ylabel("Frequency")
-axes[1].set_title("Bond-Level Distribution")
-
+fig, ax = plt.subplots(figsize=(12, 6))
+for rating in ["Investment Grade", "High Yield"]:
+    s = (
+        rep[rep["c_rating"] == rating]
+        .groupby(pd.Grouper(key="date", freq="ME"))["cds_basis_spread_bps"]
+        .mean()
+    )
+    ax.plot(s.index, s.values, label=rating, linewidth=1.2)
+ax.axhline(0, color="black", linewidth=0.8, linestyle="--")
+ax.set_title("CDS-Bond Basis (replication window, paper Figure A1g)")
+ax.set_xlabel("Date")
+ax.set_ylabel("Basis (bps)")
+ax.grid(True, linewidth=0.3, alpha=0.7)
+ax.legend()
 plt.tight_layout()
 plt.show()
-
-# %%
-"""
-## Correlation Between Rating Categories
-"""
-
-# %%
-if len(agg_wide.columns) > 1:
-    corr_matrix = agg_wide.corr()
-    print("Correlation Matrix:")
-    print(corr_matrix)
-
-    fig, ax = plt.subplots(figsize=(6, 5))
-    sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", center=0, ax=ax)
-    ax.set_title("Correlation: Implied Risk-Free Rates by Rating")
-    plt.tight_layout()
-    plt.show()
-
-# %%
-"""
-## Monthly Statistics Over Time
-"""
-
-# %%
-# Create monthly summary
-agg_df["ds"] = pd.to_datetime(agg_df["ds"])
-agg_df["month"] = agg_df["ds"].dt.to_period("M")
-
-monthly_stats = agg_df.groupby(["month", "unique_id"])["y"].agg(["mean", "std", "count"]).reset_index()
-print("Monthly statistics by rating:")
-print(monthly_stats.tail(20))
-
-# %%
-"""
-## Data Quality Check
-"""
-
-# %%
-print("=== Aggregated Dataset ===")
-print(f"Missing values: {agg_df['y'].isna().sum()}")
-print(f"Infinite values: {(~agg_df['y'].apply(lambda x: -1e10 < x < 1e10)).sum()}")
-
-print("\n=== Non-Aggregated Dataset ===")
-print(f"Missing values: {non_agg_df['y'].isna().sum()}")
-print(f"Infinite values: {(~non_agg_df['y'].apply(lambda x: -1e10 < x < 1e10)).sum()}")

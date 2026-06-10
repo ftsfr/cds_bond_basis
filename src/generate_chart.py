@@ -25,10 +25,10 @@ def generate_cds_bond_basis_chart():
         x="ds",
         y="y",
         color="unique_id",
-        title="CDS-Bond Basis by Rating Category",
+        title="CDS Basis (bps) by Rating Category",
         labels={
             "ds": "Date",
-            "y": "Implied Risk-Free Rate (%)",
+            "y": "CDS Basis (bps)",
             "unique_id": "Rating Category"
         }
     )

@@ -1,81 +1,61 @@
-[config]
-type = "pipeline"
-chartbook_format_version = "0.0.2"
-
-[site]
-title = "CDS-Bond Basis"
-author = "Jeremy Bejarano"
+[project]
+name = "CDS-Bond Basis"
+description = "CDS-Bond basis (CDS par spread minus the bond's Z-spread, in bps) from the single-name CDS and corporate bond markets"
+contributors = [
+    "Jeremy Bejarano",
+    "Alex Wang",
+    "Kausthub Kesheva",
+    "Vincent Xu",
+]
+repo_url = "https://github.com/ftsfr/cds_bond_basis"
 copyright = "2025"
-logo_path = ""
-favicon_path = ""
-
-[pipeline]
-id = "cds_bond_basis"
-pipeline_name = "CDS-Bond Basis"
-pipeline_description = "CDS-Bond basis (CDS par spread minus the bond's Z-spread, in bps) from the single-name CDS and corporate bond markets"
-lead_pipeline_developer = "Jeremy Bejarano"
-contributors = ["Jeremy Bejarano", "Alex Wang", "Kausthub Kesheva", "Vincent Xu"]
-runs_on = "Windows/Linux/MacOS (WRDS required)"
-git_repo_URL = "https://github.com/ftsfr/cds_bond_basis"
-README_file_path = "./README.md"
-
-[notebooks]
+os_compatibility = [
+    "Windows/Linux/MacOS (WRDS required)",
+]
 
 [notebooks.summary_cds_bond_basis]
-notebook_name = "summary_cds_bond_basis"
-notebook_description = "Summary statistics and visualization of CDS-Bond basis"
-notebook_path = "_output/summary_cds_bond_basis_ipynb.ipynb"
-is_publishable = true
-
-[charts]
-
-[charts.cds_bond_basis_replication]
-chart_name = "CDS-Bond Basis Replication"
-short_description_chart = "CDS-Bond basis (bps) by rating category"
-dataframe_id = "ftsfr_cds_bond_basis_aggregated"
-path_to_html_chart = "./_output/cds_bond_basis_replication.html"
-path_to_excel_chart = ""
-topic_tags = ["CDS", "bonds", "arbitrage", "basis", "replication"]
-past_publications = ["Siriwardane, Sunderam, and Wallen - Segmented Arbitrage", "Nozawa (2017) - What Drives the Cross-Section of Credit Spreads?"]
-chart_docs_str = """
-## CDS-Bond Basis Replication
-
-This chart shows the CDS-bond basis (CDS par spread minus the bond's Z-spread, in
-basis points), aggregated by rating category.
-
-### Methodology
-
-Based on Siriwardane, Sunderam, and Wallen's "Segmented Arbitrage" methodology.
-The bond Z-spread is solved against a Nelson-Siegel-Svensson (GSW 2006) risk-free
-curve fit each quote date from the CRSP Treasury panel.
-
-### Interpretation
-
-- A negative basis indicates the bond is cheap relative to CDS (negative-basis arbitrage)
-- Investment Grade vs High Yield comparison shows the basis across rating categories
-"""
-
-[dataframes]
+name = "summary_cds_bond_basis"
+description = "Summary statistics and visualization of CDS-Bond basis"
+path = "_output/summary_cds_bond_basis_ipynb.ipynb"
+publishable = true
 
 [dataframes.ftsfr_cds_bond_basis_aggregated]
-dataframe_name = "ftsfr_cds_bond_basis_aggregated"
-short_description_df = "Aggregated CDS-Bond basis by rating category"
-data_sources = ["WRDS Markit", "WRDS Bond Returns (wrdsapps_bondret)"]
-data_providers = ["WRDS"]
-need_to_contact_provider = ["no"]
-data_on_pre_approved_list = ["No"]
-links_to_data_providers = ["https://wrds-www.wharton.upenn.edu"]
-topic_tags = ["CDS", "bonds", "arbitrage", "basis", "fixed income", "credit"]
-type_of_data_access = ["WRDS", "Public"]
-data_license = "WRDS / Public"
-license_expiration_date = ""
-provider_contact_info = ""
-restriction_on_use = "No"
-how_is_pulled = "Markit CDS and bond returns (wrdsapps_bondret) pulled from WRDS"
-path_to_parquet_data = "./_data/ftsfr_cds_bond_basis_aggregated.parquet"
-path_to_excel_data = ""
+name = "ftsfr_cds_bond_basis_aggregated"
+description = "Aggregated CDS-Bond basis by rating category"
+sources = [
+    "WRDS Markit",
+    "WRDS Bond Returns (wrdsapps_bondret)",
+]
+providers = [
+    "WRDS",
+]
+contact_required = [
+    "no",
+]
+pre_approved = [
+    "No",
+]
+provider_links = [
+    "https://wrds-www.wharton.upenn.edu",
+]
+tags = [
+    "CDS",
+    "bonds",
+    "arbitrage",
+    "basis",
+    "fixed income",
+    "credit",
+]
+access_types = [
+    "WRDS",
+    "Public",
+]
+license = "WRDS / Public"
+restrictions = "No"
+pull_method = "Markit CDS and bond returns (wrdsapps_bondret) pulled from WRDS"
+path = "./_data/ftsfr_cds_bond_basis_aggregated.parquet"
 date_col = "ds"
-dataframe_docs_str = """
+docs = """
 ## CDS-Bond Basis (Aggregated)
 
 Measures the CDS-bond basis (CDS par spread minus the bond's Z-spread, in bps) from the CDS and corporate bond markets, aggregated by rating category.
@@ -90,7 +70,7 @@ Measures the CDS-bond basis (CDS par spread minus the bond's Z-spread, in bps) f
 
 ### Methodology
 
-Based on Siriwardane, Sunderam, and Wallen's "Segmented Arbitrage". The CDS-bond
+Based on Siriwardane, Sunderam, and Wallen's \"Segmented Arbitrage\". The CDS-bond
 basis is the CDS par spread minus the bond's Z-spread:
 $$
 \\text{basis}_{i, t, \\tau} = CDS_{i, t, \\tau} - Z_{i, t, \\tau}
@@ -107,24 +87,42 @@ fit each quote date from the CRSP Treasury panel.
 """
 
 [dataframes.ftsfr_cds_bond_basis_non_aggregated]
-dataframe_name = "ftsfr_cds_bond_basis_non_aggregated"
-short_description_df = "Bond-level CDS-Bond basis"
-data_sources = ["WRDS Markit", "WRDS Bond Returns (wrdsapps_bondret)"]
-data_providers = ["WRDS"]
-need_to_contact_provider = ["no"]
-data_on_pre_approved_list = ["No"]
-links_to_data_providers = ["https://wrds-www.wharton.upenn.edu"]
-topic_tags = ["CDS", "bonds", "arbitrage", "basis", "fixed income", "credit"]
-type_of_data_access = ["WRDS", "Public"]
-data_license = "WRDS / Public"
-license_expiration_date = ""
-provider_contact_info = ""
-restriction_on_use = "No"
-how_is_pulled = "Markit CDS and bond returns (wrdsapps_bondret) pulled from WRDS"
-path_to_parquet_data = "./_data/ftsfr_cds_bond_basis_non_aggregated.parquet"
-path_to_excel_data = ""
+name = "ftsfr_cds_bond_basis_non_aggregated"
+description = "Bond-level CDS-Bond basis"
+sources = [
+    "WRDS Markit",
+    "WRDS Bond Returns (wrdsapps_bondret)",
+]
+providers = [
+    "WRDS",
+]
+contact_required = [
+    "no",
+]
+pre_approved = [
+    "No",
+]
+provider_links = [
+    "https://wrds-www.wharton.upenn.edu",
+]
+tags = [
+    "CDS",
+    "bonds",
+    "arbitrage",
+    "basis",
+    "fixed income",
+    "credit",
+]
+access_types = [
+    "WRDS",
+    "Public",
+]
+license = "WRDS / Public"
+restrictions = "No"
+pull_method = "Markit CDS and bond returns (wrdsapps_bondret) pulled from WRDS"
+path = "./_data/ftsfr_cds_bond_basis_non_aggregated.parquet"
 date_col = "ds"
-dataframe_docs_str = """
+docs = """
 ## CDS-Bond Basis (Non-Aggregated)
 
 Bond-level CDS-bond basis (CDS par spread minus the bond's Z-spread, in bps).
@@ -141,4 +139,38 @@ Bond-level CDS-bond basis (CDS par spread minus the bond's Z-spread, in bps).
 
 - Markit CDS data from WRDS
 - Corporate bond returns from WRDS (wrdsapps_bondret)
+"""
+
+[charts.cds_bond_basis_replication]
+name = "CDS-Bond Basis Replication"
+description = "CDS-Bond basis (bps) by rating category"
+dataframe = "ftsfr_cds_bond_basis_aggregated"
+path = "./_output/cds_bond_basis_replication.html"
+tags = [
+    "CDS",
+    "bonds",
+    "arbitrage",
+    "basis",
+    "replication",
+]
+publications = [
+    "Siriwardane, Sunderam, and Wallen - Segmented Arbitrage",
+    "Nozawa (2017) - What Drives the Cross-Section of Credit Spreads?",
+]
+docs = """
+## CDS-Bond Basis Replication
+
+This chart shows the CDS-bond basis (CDS par spread minus the bond's Z-spread, in
+basis points), aggregated by rating category.
+
+### Methodology
+
+Based on Siriwardane, Sunderam, and Wallen's \"Segmented Arbitrage\" methodology.
+The bond Z-spread is solved against a Nelson-Siegel-Svensson (GSW 2006) risk-free
+curve fit each quote date from the CRSP Treasury panel.
+
+### Interpretation
+
+- A negative basis indicates the bond is cheap relative to CDS (negative-basis arbitrage)
+- Investment Grade vs High Yield comparison shows the basis across rating categories
 """
